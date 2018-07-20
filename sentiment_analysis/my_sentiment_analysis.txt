@@ -1,0 +1,9 @@
+tweets = load 'demonitization_tweets.txt' using PigStorage(',');
+tweets_texts = foreach tweets generate (int)$0 as ID, (chararray)$1 as tweet_text;
+tweet_words = foreach tweets_texts generate ID, tweet_text, FLATTEN(TOKENIZE(tweet_text)) as word;
+affinity = load 'AFINN.txt' as (word:chararray, score:int);
+joined = join tweet_words by word, affinity by word;
+joined_result = foreach joined generate tweet_words::ID, tweet_words::tweet_text, affinity::score;
+joined_result_grouped = group joined_result by (ID, tweet_text);
+sentiment = foreach joined_result_grouped generate group, AVG(joined_result.score);
+dump sentiment;
