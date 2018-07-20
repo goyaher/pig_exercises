@@ -1,0 +1,62 @@
+1. Find out the top 5 most visited destinations. 
+
+flights = load 'delayedflights.csv' using PigStorage(',');
+destinations = foreach flights generate $18 as destination;
+grouped = group destinations by destination;
+counts = foreach grouped generate group, COUNT(destinations) as count;
+ordered = order counts by count desc;
+top5 = limit ordered 5;
+airports = load 'airports.csv' using PigStorage(',') as (iata,airport,city,state,country,lat,long);
+airports_trimmed = foreach airports generate SUBSTRING(iata, 1, (int)SIZE(iata)-1) as dest, city, country;
+joined = join top5 by $0, airports_trimmed by dest;
+top5_dest = foreach joined generate city, country;
+dump top5_dest;
+
+("Atlanta","USA")
+("Denver","USA")
+("Dallas-Fort Worth","USA")
+("Los Angeles","USA")
+("Chicago","USA")
+
+2. Which month has seen the most number of cancellations due to bad weather?
+
+bad_weather_records = filter flights by $22 == 1 and $23 == 'B';
+grouped = group bad_weather_records by $2;
+counts = foreach grouped generate group, COUNT(bad_weather_records) as count;
+sorted = order counts by count desc;
+most_cancelled = limit sorted 1;
+
+(12,250)  Means December has 250 flights cancelled due to bad weather
+
+3. Top ten origins with the highest AVG departure delay?
+
+records_m = foreach flights generate $17 as origin, $16 as depdelay;
+records = filter records_m by (origin is not null) and (depdelay is not null);
+grouped = group records by origin;
+avg_delay = foreach grouped generate group as origin, AVG(records.depdelay) as avgdelay;
+sorted = order avg_delay by avgdelay desc;
+top10delayed = limit sorted 10;
+dump top10delayed;
+
+
+(CMX,116.1470588235294)
+(PLN,93.76190476190476)
+(SPI,83.84873949579831)
+(ALO,82.2258064516129)
+(MQT,79.55665024630542)
+(ACY,79.3103448275862)
+(MOT,78.66165413533835)
+(HHH,76.53005464480874)
+(EGE,74.12891986062718)
+(BGM,73.15533980582525)
+
+4. Which route (origin & destination) has seen the maximum diversion?
+
+records = foreach flights generate $17 as origin, $18 as dest, $24 as diversion;
+filtered = FILTER records BY (origin is not null) AND (dest is not null) AND (diversion == 1);
+grouped = group filtered by (origin, dest);
+diversion_counts = foreach grouped generate group, COUNT(filtered) as count;
+sorted = order diversion_counts by count desc;
+max_diversion_route = limit sorted 1;
+
+((ORD,LGA),39)    i.e. Route from ORD -> LGA has seen max 39 diversions.
